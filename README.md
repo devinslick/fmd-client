@@ -11,8 +11,12 @@ This directory contains Python scripts for interacting with an FMD server, inclu
 
 ## Scripts Overview
 
-### 1. `fmd_client_location.py`
-Retrieves the latest encrypted location data for a user/device.
+### Primary Scripts
+
+These are the most common scripts you will use.
+
+#### `fmd_export.py`
+**The main tool for exporting data.** This script performs end-to-end authentication and decryption to download locations and/or pictures, saving them to a directory or a zip archive.
 
 **Usage:**
 ```

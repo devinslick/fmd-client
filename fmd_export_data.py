@@ -55,7 +55,7 @@ def get_access_token(base_url, fmd_id, password_hash, session_duration=3600):
     return resp.json()["Data"]
 
 def export_data(base_url, access_token, output_file):
-    resp = requests.put(f"{base_url}/api/v1/exportData", json={"IDT": access_token, "Data": "unused"}, stream=True)
+    resp = requests.post(f"{base_url}/api/v1/exportData", json={"IDT": access_token, "Data": "unused"}, stream=True)
     if resp.status_code != 200:
         print(f"Failed to export data: {resp.text}")
         sys.exit(1)
