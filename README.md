@@ -1,6 +1,7 @@
 # FMD Server Python Client Scripts
 
-This directory contains Python scripts for interacting with an FMD server, including authentication, key retrieval, and location data decryption.
+This directory contains Python scripts for interacting with an FMD (Find My Device) server, including authentication, key retrieval, and location data decryption.
+For more information on this open source alternative to Google's Find My Device service, read the Credits section at the bottom of this README.
 
 ## Prerequisites
 - Python 3.7+
@@ -89,3 +90,11 @@ python fmd_get_location.py --url <server_url> --id <fmd_id> --password <password
 - All scripts use Argon2id password hashing and AES-GCM/RSA-OAEP encryption, matching the FMD web client.
 - For troubleshooting, check the script output for error messages.
 - For batch or CSV export, contact the maintainer or extend `fmd_get_location.py`.
+
+## Credits
+
+This project is a client for the open-source FMD (Find My Device) server. The FMD project provides a decentralized, self-hostable alternative to commercial device tracking services.
+
+- **[fmd-foss.org](https://fmd-foss.org/)**: The official project website, offering general information, documentation, and news.
+- **[fmd-foss on GitLab](https://gitlab.com/fmd-foss)**: The official GitLab group hosting the source code for the server, Android client, web UI, and other related projects.
+- **[fmd.nulide.de](https://fmd.nulide.de/)**: A generously hosted public instance of the FMD server available for community use.

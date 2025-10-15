@@ -5,8 +5,8 @@ This module provides a class that handles authentication, key management,
 and data decryption for FMD clients.
 """
 import base64
-import sys
 import requests
+import logging
 from argon2.low_level import hash_secret_raw, Type
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -19,6 +19,12 @@ CONTEXT_STRING_ASYM_KEY_WRAP = "context:asymmetricKeyWrap"
 ARGON2_SALT_LENGTH = 16
 AES_GCM_IV_SIZE_BYTES = 12
 RSA_KEY_SIZE_BYTES = 384  # 3072 bits / 8
+
+log = logging.getLogger(__name__)
+
+class FmdApiException(Exception):
+    """Base exception for FMD API errors."""
+    pass
 
 def _pad_base64(s):
     return s + '=' * (-len(s) % 4)
@@ -34,16 +40,16 @@ class FmdApi:
 
     def _authenticate(self, fmd_id, password, session_duration):
         """Performs the full authentication and key retrieval workflow."""
-        print("[1] Requesting salt...")
+        log.info("[1] Requesting salt...")
         salt = self._get_salt(fmd_id)
-        print("[2] Hashing password with salt...")
+        log.info("[2] Hashing password with salt...")
         password_hash = self._hash_password(password, salt)
-        print("[3] Requesting access token...")
+        log.info("[3] Requesting access token...")
         self.access_token = self._get_access_token(fmd_id, password_hash, session_duration)
         
-        print("[3a] Retrieving encrypted private key...")
+        log.info("[3a] Retrieving encrypted private key...")
         privkey_blob = self._get_private_key_blob()
-        print("[3b] Decrypting private key...")
+        log.info("[3b] Decrypting private key...")
         privkey_bytes = self._decrypt_private_key_blob(privkey_blob, password)
         self.private_key = self._load_private_key_from_bytes(privkey_bytes)
 
@@ -113,33 +119,33 @@ class FmdApi:
             resp.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
             return resp.json()["Data"] if not stream else resp
         except requests.exceptions.RequestException as e:
-            print(f"API request failed for {endpoint}: {e}", file=sys.stderr)
-            sys.exit(1)
+            log.error(f"API request failed for {endpoint}: {e}")
+            raise FmdApiException(f"API request failed for {endpoint}: {e}") from e
         except (KeyError, ValueError) as e:
-            print(f"Failed to parse server response for {endpoint}: {e}", file=sys.stderr)
-            sys.exit(1)
+            log.error(f"Failed to parse server response for {endpoint}: {e}")
+            raise FmdApiException(f"Failed to parse server response for {endpoint}: {e}") from e
 
     def get_all_locations(self, num_to_get=-1):
         """Fetches all or the N most recent location blobs."""
         size_str = self._make_api_request("/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
         if size == 0:
-            print("No locations found to download.")
+            log.info("No locations found to download.")
             return []
 
         locations = []
         if num_to_get == -1:  # Download all
-            print(f"Found {size} locations to download.")
+            log.info(f"Found {size} locations to download.")
             indices = range(size)
         else:  # Download N most recent
             num_to_download = min(num_to_get, size)
-            print(f"Found {size} locations. Downloading the {num_to_download} most recent.")
+            log.info(f"Found {size} locations. Downloading the {num_to_download} most recent.")
             start_index = size - 1
             end_index = size - num_to_download
             indices = range(start_index, end_index - 1, -1)
 
         for i in indices:
-            print(f"  - Downloading location at index {i}...")
+            log.info(f"  - Downloading location at index {i}...")
             blob = self._make_api_request("/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
             locations.append(blob)
         return locations
@@ -151,15 +157,15 @@ class FmdApi:
             resp.raise_for_status()
             all_pictures = resp.json()
         except requests.exceptions.RequestException as e:
-            print(f"Warning: Failed to get pictures: {e}. The endpoint may not exist or requires a different method.", file=sys.stderr)
+            log.warning(f"Failed to get pictures: {e}. The endpoint may not exist or requires a different method.")
             return []
 
         if num_to_get == -1:  # Download all
-            print(f"Found {len(all_pictures)} pictures to download.")
+            log.info(f"Found {len(all_pictures)} pictures to download.")
             return all_pictures
         else:  # Download N most recent
             num_to_download = min(num_to_get, len(all_pictures))
-            print(f"Found {len(all_pictures)} pictures. Selecting the {num_to_download} most recent.")
+            log.info(f"Found {len(all_pictures)} pictures. Selecting the {num_to_download} most recent.")
             return all_pictures[-num_to_download:][::-1]
 
     def export_data_zip(self, output_file):
@@ -171,7 +177,7 @@ class FmdApi:
                 for chunk in resp.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-            print(f"Exported data saved to {output_file}")
+            log.info(f"Exported data saved to {output_file}")
         except requests.exceptions.RequestException as e:
-            print(f"Failed to export data: {e}", file=sys.stderr)
-            sys.exit(1)
+            log.error(f"Failed to export data: {e}")
+            raise FmdApiException(f"Failed to export data: {e}") from e
