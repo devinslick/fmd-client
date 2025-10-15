@@ -10,20 +10,23 @@ This directory contains Python scripts for interacting with an FMD server, inclu
   ```
 
 ## Scripts Overview
+### Primary User-Facing Scripts
 
-### Primary Scripts
+These are the main tools for interacting with the FMD server.
 
-These are the most common scripts you will use.
+#### `fmd_client.py`
+**The main client for exporting data.** This script downloads locations and/or pictures, saving them to a directory or a zip archive.
 
-#### `fmd_export.py`
-**The main tool for exporting data.** This script performs end-to-end authentication and decryption to download locations and/or pictures, saving them to a directory or a zip archive.
-
+Debugging scripts useful for troubleshooting, not dependencies of fmd_client.py.
+```
+#### 1. `fmd_client_location.py`
 **Usage:**
 ```
 python fmd_client_location.py --url <server_url> --id <fmd_id> --password <password>
 ```
 
 ### 2. `fmd_client_key.py`
+**Usage:**
 Retrieves the encrypted private key for a user/device.
 
 **Usage:**
