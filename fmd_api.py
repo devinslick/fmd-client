@@ -98,6 +98,15 @@ class FmdApi:
     def decrypt_data_blob(self, data_b64: str) -> bytes:
         """Decrypts a data blob using the instance's private key."""
         blob = base64.b64decode(_pad_base64(data_b64))
+        
+        # Check if blob is large enough to contain encrypted data
+        min_size = RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES
+        if len(blob) < min_size:
+            raise FmdApiException(
+                f"Blob too small for decryption: {len(blob)} bytes (expected at least {min_size} bytes). "
+                f"This may indicate empty/invalid data from the server."
+            )
+        
         session_key_packet = blob[:RSA_KEY_SIZE_BYTES]
         iv = blob[RSA_KEY_SIZE_BYTES:RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES]
         ciphertext = blob[RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES:]
