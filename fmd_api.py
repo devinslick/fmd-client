@@ -135,7 +135,12 @@ class FmdApi:
             raise FmdApiException(f"Failed to parse server response for {endpoint}: {e}") from e
 
     def get_all_locations(self, num_to_get=-1):
-        """Fetches all or the N most recent location blobs."""
+        """Fetches all or the N most recent location blobs.
+        
+        Note: Server stores locations with index 0 = oldest, higher indices = newer.
+        However, there may be gaps/empty slots at high indices, so we search backwards
+        and skip invalid entries.
+        """
         size_str = self._make_api_request("/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
         if size == 0:
@@ -145,18 +150,27 @@ class FmdApi:
         locations = []
         if num_to_get == -1:  # Download all
             log.info(f"Found {size} locations to download.")
-            indices = range(size)
-        else:  # Download N most recent
-            num_to_download = min(num_to_get, size)
-            log.info(f"Found {size} locations. Downloading the {num_to_download} most recent.")
-            start_index = size - 1
-            end_index = size - num_to_download
-            indices = range(start_index, end_index - 1, -1)
-
-        for i in indices:
-            log.info(f"  - Downloading location at index {i}...")
-            blob = self._make_api_request("/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
-            locations.append(blob)
+            for i in range(size):
+                log.info(f"  - Downloading location at index {i}...")
+                blob = self._make_api_request("/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+                locations.append(blob)
+        else:  # Download N most recent (scan backwards, skip empty slots)
+            log.info(f"Found {size} locations. Searching for the {num_to_get} most recent (may skip empty slots)...")
+            i = size - 1
+            while len(locations) < num_to_get and i >= 0:
+                log.info(f"  - Downloading location at index {i}...")
+                blob = self._make_api_request("/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+                # Check if blob is valid (not empty/placeholder)
+                min_size = RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES
+                if len(base64.b64decode(_pad_base64(blob))) >= min_size:
+                    locations.append(blob)
+                else:
+                    log.info(f"    Skipping empty slot at index {i}")
+                i -= 1
+            
+            if len(locations) < num_to_get:
+                log.warning(f"Only found {len(locations)} valid locations out of {num_to_get} requested")
+        
         return locations
 
     def get_pictures(self, num_to_get=-1):
