@@ -28,7 +28,9 @@ All crypto operations MUST match the FMD web client specification:
 All API endpoints use PUT requests with `{"IDT": <id_or_token>, "Data": <payload>}` format. Response is `{"Data": <result>}`. See `_make_api_request()` in `fmd_api.py`.
 
 ### Location/Picture Handling
-- Location blobs decrypt to JSON with fields: `time`, `provider`, `bat`, `lon`, `lat`
+- Location blobs decrypt to JSON with these fields:
+  - Always present: `time`, `provider`, `bat`, `lat`, `lon`, `date` (Unix ms)
+  - Optional (GPS-dependent): `accuracy` (m), `altitude` (m), `speed` (m/s), `heading` (°)
 - Picture blobs decrypt to base64 strings (often with data URI prefix like `data:image/png;base64,`)
 - Always split on comma and take the last segment: `decrypted_text.split(',')[-1]`
 

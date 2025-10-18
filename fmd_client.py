@@ -8,9 +8,10 @@ Usage:
     python fmd_client.py --url <server_url> --id <fmd_id> --password <password> --output <output_path> [--locations [N]] [--pictures [N]]
 
 Dependencies:
-    pip install requests argon2-cffi cryptography
+    pip install aiohttp argon2-cffi cryptography
 """
 import argparse
+import asyncio
 import base64
 import sys
 import os
@@ -19,7 +20,7 @@ import json
 from fmd_api import FmdApi, _pad_base64
 
 def save_locations_csv(api, location_blobs, out_path):
-    header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
+    header = "Date,Provider,Battery %,Latitude,Longitude,Accuracy (m),Altitude (m),Speed (m/s),Heading (°)\n"
     lines = [header]
     skipped_count = 0
     for idx, location_blob in enumerate(location_blobs):
@@ -38,9 +39,13 @@ def save_locations_csv(api, location_blobs, out_path):
         date = loc.get('time', 'N/A')
         provider = loc.get('provider', 'N/A')
         bat = loc.get('bat', 'N/A')
-        lon = loc.get('lon', 'N/A')
         lat = loc.get('lat', 'N/A')
-        lines.append(f"{date},{provider},{bat},{lon},{lat}\n")
+        lon = loc.get('lon', 'N/A')
+        accuracy = loc.get('accuracy', 'N/A')
+        altitude = loc.get('altitude', 'N/A')
+        speed = loc.get('speed', 'N/A')
+        heading = loc.get('heading', 'N/A')  # Changed from 'bearing' to 'heading'
+        lines.append(f"{date},{provider},{bat},{lat},{lon},{accuracy},{altitude},{speed},{heading}\n")
     
     with open(out_path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
@@ -68,7 +73,7 @@ def save_pictures(api, picture_blobs, out_dir):
     if skipped_count > 0:
         print(f"Note: Skipped {skipped_count} invalid/empty picture(s) out of {len(picture_blobs)} total")
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="FMD Server Client")
     parser.add_argument('--url', required=True, help='Base URL of the FMD server (e.g. https://fmd.example.com)')
     parser.add_argument('--id', required=True, help='FMD ID (username)')
@@ -91,16 +96,17 @@ def main():
         print("Nothing to export: specify --locations and/or --pictures")
         sys.exit(1)
 
-    api = FmdApi(base_url, fmd_id, password, session_duration)
+    print("[1-3] Authenticating and retrieving keys...")
+    api = await FmdApi.create(base_url, fmd_id, password, session_duration)
 
     locations_json = None
     pictures_json = None
     if num_locations_to_get is not None:
         print("[4] Downloading locations...")
-        locations_json = api.get_all_locations(num_locations_to_get)
+        locations_json = await api.get_all_locations(num_locations_to_get)
     if num_pictures_to_get is not None:
         print("[5] Downloading pictures...")
-        pictures_json = api.get_pictures(num_pictures_to_get)
+        pictures_json = await api.get_pictures(num_pictures_to_get)
 
     is_zip = output_path.lower().endswith('.zip')
     if is_zip:
@@ -111,7 +117,7 @@ def main():
             if num_locations_to_get is not None and locations_json is not None:
                 import io
                 csv_buf = io.StringIO()
-                header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
+                header = "Date,Provider,Battery %,Latitude,Longitude,Accuracy (m),Altitude (m),Speed (m/s),Heading (°)\n"
                 csv_buf.write(header)
                 location_list = locations_json
                 for idx, location_blob in enumerate(location_list):
@@ -130,9 +136,13 @@ def main():
                     date = loc.get('time', 'N/A')
                     provider = loc.get('provider', 'N/A')
                     bat = loc.get('bat', 'N/A')
-                    lon = loc.get('lon', 'N/A')
                     lat = loc.get('lat', 'N/A')
-                    csv_buf.write(f"{date},{provider},{bat},{lon},{lat}\n")
+                    lon = loc.get('lon', 'N/A')
+                    accuracy = loc.get('accuracy', 'N/A')
+                    altitude = loc.get('altitude', 'N/A')
+                    speed = loc.get('speed', 'N/A')
+                    heading = loc.get('heading', 'N/A')  # Changed from 'bearing' to 'heading'
+                    csv_buf.write(f"{date},{provider},{bat},{lat},{lon},{accuracy},{altitude},{speed},{heading}\n")
                 zf.writestr('locations.csv', csv_buf.getvalue())
                 if skipped_locations > 0:
                     print(f"Note: Skipped {skipped_locations} invalid/empty location(s) in zip")
@@ -162,4 +172,4 @@ def main():
         print(f"Exported data saved to {output_path}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

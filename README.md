@@ -121,7 +121,9 @@ This shows the actual blob size, expected structure, and helps identify if the R
 - All scripts use Argon2id password hashing and AES-GCM/RSA-OAEP encryption, matching the FMD web client
 - Blobs must be at least 396 bytes (384 RSA session key + 12 IV + ciphertext) to be valid
 - Base64 data from the server may be missing padding - use `_pad_base64()` helper when needed
-- Location data includes: `time`, `provider`, `bat` (battery %), `lon`, `lat`
+- **Location data fields**:
+  - Always present: `time`, `provider`, `bat` (battery %), `lat`, `lon`, `date` (Unix ms)
+  - Optional (depending on provider): `accuracy` (meters), `altitude` (meters), `speed` (m/s), `heading` (degrees)
 - Picture data is double-encoded: encrypted blob → base64 string → actual image bytes
 
 ## Credits
