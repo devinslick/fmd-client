@@ -27,6 +27,17 @@ All crypto operations MUST match the FMD web client specification:
 ### API Request Structure
 All API endpoints use PUT requests with `{"IDT": <id_or_token>, "Data": <payload>}` format. Response is `{"Data": <result>}`. See `_make_api_request()` in `fmd_api.py`.
 
+**Exception - Command Endpoint**: `/api/v1/command` requires POST with additional fields:
+```python
+{
+    "IDT": access_token,
+    "Data": command_string,       # e.g., "locate", "locate gps", "ring"
+    "UnixTime": timestamp_ms,      # Current Unix time in milliseconds
+    "CmdSig": signature_base64     # RSA-PSS signature of "timestamp:command" (SHA-256, salt_length=32)
+}
+```
+**CRITICAL**: The signature must be over `"{UnixTime}:{Data}"`, NOT just `{Data}`. This prevents replay attacks and verifies command authenticity. See fmd-server/web/logic.js line 489.
+
 ### Location/Picture Handling
 - Location blobs decrypt to JSON with these fields:
   - Always present: `time`, `provider`, `bat`, `lat`, `lon`, `date` (Unix ms)
