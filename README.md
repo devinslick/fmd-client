@@ -83,16 +83,35 @@ The foundational API library providing the `FmdApi` class. Handles:
 - Data blob decryption (RSA-OAEP + AES-GCM)
 - Location and picture retrieval
 
-**Usage in your own scripts:**
+**For application developers:** See [LOCATION_FIELDS.md](LOCATION_FIELDS.md) for detailed documentation on extracting and using accuracy, altitude, speed, and heading fields.
+
+**Quick example:**
 ```python
+import asyncio
+import json
 from fmd_api import FmdApi
 
-# Authenticate (automatically retrieves and decrypts private key)
-api = FmdApi("https://fmd.example.com", "alice", "secret")
+async def main():
+    # Authenticate (automatically retrieves and decrypts private key)
+    api = await FmdApi.create("https://fmd.example.com", "alice", "secret")
 
-# Get locations
-locations = api.get_all_locations(num_to_get=10)  # Last 10, or -1 for all
+    # Get locations
+    locations = await api.get_all_locations(num_to_get=10)  # Last 10, or -1 for all
 
+    # Decrypt a location blob
+    decrypted_data = api.decrypt_data_blob(locations[0])
+    location = json.loads(decrypted_data)
+    
+    # Access fields (use .get() for optional fields)
+    lat = location['lat']
+    lon = location['lon']
+    speed = location.get('speed')      # Optional, only when moving
+    heading = location.get('heading')  # Optional, only when moving
+
+asyncio.run(main())
+```
+asyncio.run(main())
+```
 # Decrypt a location blob
 decrypted_data = api.decrypt_data_blob(locations[0])
 location_json = json.loads(decrypted_data)
